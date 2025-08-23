@@ -46,9 +46,45 @@
             background-color: #0066cc;
             color: white;
         }
+        .title-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 14px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        .title-bar .close-btn {
+            margin-left: auto;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .title-bar .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .iframe-with-title {
+            margin-top: 40px;
+            height: calc(100vh - 40px);
+        }
     </style>
 </head>
 <body>
+    <div id="title-bar" class="title-bar" style="display: none;">
+        <span id="page-title">正在加载...</span>
+        <button class="close-btn" onclick="hideTitleBar()">隐藏</button>
+    </div>
+    
     <div id="iframe-container" style="display: none;">
         <iframe id="content-frame" frameborder="0" width="100%" height="100%"></iframe>
     </div>
@@ -82,31 +118,113 @@
         return urlParmStr;
     }
     
-    // 获取网页标题
+    // 尝试通过多种方式获取页面标题
     function getPageTitle(url, callback) {
-        // 创建一个隐藏的iframe来获取标题
+        // 方法1: 尝试通过fetch获取页面内容（需要CORS支持）
+        fetch(url, { mode: 'no-cors' })
+            .then(response => {
+                // 由于no-cors模式，我们无法读取响应内容
+                // 但可以尝试其他方法
+                return null;
+            })
+            .catch(() => {
+                // fetch失败，尝试其他方法
+                return null;
+            })
+            .finally(() => {
+                // 方法2: 使用iframe加载后尝试获取标题
+                tryGetTitleFromIframe(url, callback);
+            });
+    }
+    
+    // 通过iframe尝试获取标题
+    function tryGetTitleFromIframe(url, callback) {
         var tempFrame = document.createElement('iframe');
         tempFrame.style.display = 'none';
         tempFrame.src = url;
         
+        var timeout = setTimeout(() => {
+            // 5秒后超时
+            callback('未知页面');
+            if (document.body.contains(tempFrame)) {
+                document.body.removeChild(tempFrame);
+            }
+        }, 5000);
+        
         tempFrame.onload = function() {
+            clearTimeout(timeout);
             try {
                 var title = tempFrame.contentDocument.title || '未知页面';
-                callback(title);
+                if (title && title !== '未知页面') {
+                    callback(title);
+                } else {
+                    // 尝试从URL推断标题
+                    var urlTitle = getTitleFromUrl(url);
+                    callback(urlTitle);
+                }
             } catch(e) {
-                // 跨域限制，无法获取标题
-                callback('未知页面');
+                console.log('跨域限制，无法获取标题:', e);
+                // 从URL推断标题
+                var urlTitle = getTitleFromUrl(url);
+                callback(urlTitle);
             }
+            
             // 移除临时iframe
-            document.body.removeChild(tempFrame);
+            if (document.body.contains(tempFrame)) {
+                document.body.removeChild(tempFrame);
+            }
         };
         
         tempFrame.onerror = function() {
-            callback('未知页面');
-            document.body.removeChild(tempFrame);
+            clearTimeout(timeout);
+            var urlTitle = getTitleFromUrl(url);
+            callback(urlTitle);
+            
+            if (document.body.contains(tempFrame)) {
+                document.body.removeChild(tempFrame);
+            }
         };
         
         document.body.appendChild(tempFrame);
+    }
+    
+    // 从URL推断标题
+    function getTitleFromUrl(url) {
+        try {
+            var urlObj = new URL(url);
+            var hostname = urlObj.hostname;
+            var pathname = urlObj.pathname;
+            
+            // 移除www前缀
+            if (hostname.startsWith('www.')) {
+                hostname = hostname.substring(4);
+            }
+            
+            // 如果有路径，添加到标题中
+            if (pathname && pathname !== '/') {
+                var pathParts = pathname.split('/').filter(part => part.length > 0);
+                if (pathParts.length > 0) {
+                    return hostname + ' - ' + pathParts[pathParts.length - 1];
+                }
+            }
+            
+            return hostname;
+        } catch(e) {
+            return '中转页面';
+        }
+    }
+    
+    // 显示标题栏
+    function showTitleBar(title) {
+        document.getElementById('page-title').textContent = title;
+        document.getElementById('title-bar').style.display = 'flex';
+        document.getElementById('iframe-container').className = 'iframe-with-title';
+    }
+    
+    // 隐藏标题栏
+    function hideTitleBar() {
+        document.getElementById('title-bar').style.display = 'none';
+        document.getElementById('iframe-container').className = '';
     }
     
     // 主函数
@@ -118,16 +236,21 @@
             // 在QQ/微信中，显示iframe
             console.log("检测到在QQ/微信中打开，使用iframe内嵌显示");
             
-            // 获取页面标题
-            getPageTitle(targetUrl, function(title) {
-                document.title = title || '中转页面';
-                console.log("获取到页面标题:", title);
-            });
+            // 先显示默认标题
+            document.title = '中转页面';
+            showTitleBar('正在加载...');
             
             // 显示iframe并加载内容
             document.getElementById('loading').style.display = 'none';
             document.getElementById('iframe-container').style.display = 'block';
             document.getElementById('content-frame').src = targetUrl;
+            
+            // 尝试获取页面标题
+            getPageTitle(targetUrl, function(title) {
+                console.log("获取到页面标题:", title);
+                document.title = title;
+                showTitleBar(title);
+            });
             
         } else {
             // 直接在浏览器中打开，跳转到目标网址
