@@ -321,7 +321,7 @@
             console.log("检测到在QQ/微信中打开，使用iframe内嵌显示");
             
             // 先显示默认标题
-            document.title = '请等待...';
+            document.title = '中转页面';
             showTitleBar('正在加载...');
             
             // 显示iframe并加载内容
@@ -352,47 +352,201 @@
     // URL跟踪相关变量
     var currentUrl = '';
     var urlTrackingInterval = null;
+    var lastKnownUrl = '';
     
     // 启动URL跟踪
     function startUrlTracking() {
         // 设置初始URL
         currentUrl = getTargetUrl();
+        lastKnownUrl = currentUrl;
         
-        // 定期检查iframe的URL变化
+        // 监听iframe的load事件
+        var iframe = document.getElementById('content-frame');
+        iframe.addEventListener('load', function() {
+            tryTrackCurrentUrl();
+        });
+        
+        // 监听iframe的beforeunload事件（页面即将离开）
+        iframe.addEventListener('beforeunload', function() {
+            console.log('iframe页面即将离开');
+        });
+        
+        // 监听iframe的unload事件（页面已离开）
+        iframe.addEventListener('unload', function() {
+            console.log('iframe页面已离开');
+        });
+        
+        // 尝试监听iframe的popstate事件（历史记录变化）
+        try {
+            iframe.addEventListener('popstate', function() {
+                console.log('iframe历史记录变化');
+                setTimeout(tryTrackCurrentUrl, 100);
+            });
+        } catch(e) {
+            console.log('无法监听iframe的popstate事件:', e);
+        }
+        
+        // 定期检查URL变化（作为备用方案）
         urlTrackingInterval = setInterval(function() {
-            try {
-                var iframe = document.getElementById('content-frame');
-                if (iframe && iframe.contentWindow && iframe.contentWindow.location) {
-                    var newUrl = iframe.contentWindow.location.href;
-                    if (newUrl && newUrl !== currentUrl && !newUrl.includes('about:blank')) {
-                        currentUrl = newUrl;
-                        console.log("检测到URL变化:", currentUrl);
-                        
-                        // 更新提示信息中的URL
-                        updateTipWithCurrentUrl();
-                    }
-                }
-            } catch(e) {
-                // 跨域限制，无法直接访问iframe的location
-                // 使用其他方法尝试获取当前URL
-                tryGetCurrentUrlFromIframe();
-            }
-        }, 2000); // 每2秒检查一次
+            tryTrackCurrentUrl();
+        }, 3000); // 每3秒检查一次
+        
+        // 添加MutationObserver监听iframe的src属性变化
+        observeIframeSrcChanges();
     }
     
-    // 尝试从iframe获取当前URL（处理跨域限制）
-    function tryGetCurrentUrlFromIframe() {
+    // 尝试获取当前URL
+    function tryTrackCurrentUrl() {
         try {
             var iframe = document.getElementById('content-frame');
             if (iframe && iframe.contentWindow) {
-                // 尝试通过postMessage或其他方式获取URL
-                // 这里我们使用一个更安全的方法
-                iframe.contentWindow.postMessage({type: 'getCurrentUrl'}, '*');
+                // 方法1: 尝试直接访问iframe的location
+                var iframeUrl = iframe.contentWindow.location.href;
+                if (iframeUrl && iframeUrl !== 'about:blank' && iframeUrl !== lastKnownUrl) {
+                    updateCurrentUrl(iframeUrl);
+                    return;
+                }
             }
         } catch(e) {
-            console.log('无法获取iframe当前URL:', e);
+            // 跨域限制，尝试其他方法
+        }
+        
+        // 方法2: 尝试通过postMessage获取URL
+        tryPostMessageToIframe();
+        
+        // 方法3: 尝试从iframe的src获取（如果iframe重新加载了）
+        tryGetUrlFromIframeSrc();
+        
+        // 方法4: 尝试注入脚本监听URL变化
+        tryInjectUrlTrackingScript();
+    }
+    
+    // 尝试通过postMessage获取URL
+    function tryPostMessageToIframe() {
+        try {
+            var iframe = document.getElementById('content-frame');
+            if (iframe && iframe.contentWindow) {
+                // 发送消息到iframe请求当前URL
+                iframe.contentWindow.postMessage({
+                    type: 'getCurrentUrl',
+                    requestId: Date.now()
+                }, '*');
+            }
+        } catch(e) {
+            console.log('postMessage失败:', e);
         }
     }
+    
+    // 尝试从iframe的src获取URL
+    function tryGetUrlFromIframeSrc() {
+        var iframe = document.getElementById('content-frame');
+        if (iframe && iframe.src && iframe.src !== lastKnownUrl) {
+            // 如果iframe的src发生了变化，可能是重定向
+            var newSrc = iframe.src;
+            if (newSrc && newSrc !== 'about:blank') {
+                updateCurrentUrl(newSrc);
+            }
+        }
+    }
+    
+    // 尝试注入URL跟踪脚本
+    function tryInjectUrlTrackingScript() {
+        try {
+            var iframe = document.getElementById('content-frame');
+            if (iframe && iframe.contentWindow && iframe.contentDocument) {
+                // 检查是否已经注入了脚本
+                if (iframe.contentDocument.getElementById('url-tracking-script')) {
+                    return;
+                }
+                
+                // 创建注入脚本
+                var script = iframe.contentDocument.createElement('script');
+                script.id = 'url-tracking-script';
+                script.textContent = `
+                    (function() {
+                        var currentUrl = window.location.href;
+                        
+                        // 监听URL变化
+                        function checkUrlChange() {
+                            if (window.location.href !== currentUrl) {
+                                currentUrl = window.location.href;
+                                // 通知父页面
+                                if (window.parent && window.parent !== window) {
+                                    window.parent.postMessage({
+                                        type: 'currentUrlResponse',
+                                        url: currentUrl
+                                    }, '*');
+                                }
+                            }
+                        }
+                        
+                        // 监听popstate事件（浏览器前进后退）
+                        window.addEventListener('popstate', function() {
+                            setTimeout(checkUrlChange, 100);
+                        });
+                        
+                        // 监听pushstate和replacestate事件
+                        var originalPushState = history.pushState;
+                        var originalReplaceState = history.replaceState;
+                        
+                        history.pushState = function() {
+                            originalPushState.apply(this, arguments);
+                            setTimeout(checkUrlChange, 100);
+                        };
+                        
+                        history.replaceState = function() {
+                            originalReplaceState.apply(this, arguments);
+                            setTimeout(checkUrlChange, 100);
+                        };
+                        
+                        // 定期检查URL变化
+                        setInterval(checkUrlChange, 1000);
+                        
+                        // 初始检查
+                        checkUrlChange();
+                    })();
+                `;
+                
+                // 注入脚本
+                iframe.contentDocument.head.appendChild(script);
+                console.log('URL跟踪脚本注入成功');
+                
+            }
+        } catch(e) {
+            // 跨域限制，无法注入脚本
+            console.log('无法注入URL跟踪脚本:', e);
+        }
+    }
+    
+    // 更新当前URL
+    function updateCurrentUrl(newUrl) {
+        if (newUrl && newUrl !== currentUrl && newUrl !== 'about:blank') {
+            lastKnownUrl = currentUrl;
+            currentUrl = newUrl;
+            console.log("URL更新:", currentUrl);
+            
+            // 更新提示信息
+            updateTipWithCurrentUrl();
+            
+            // 尝试更新页面标题
+            getPageTitle(currentUrl, function(title) {
+                if (title && title !== '未知页面') {
+                    document.title = title;
+                    showTitleBar(title);
+                }
+            });
+        }
+    }
+    
+    // 监听来自iframe的消息
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'currentUrlResponse') {
+            var url = event.data.url;
+            if (url && url !== currentUrl) {
+                updateCurrentUrl(url);
+            }
+        }
+    });
     
     // 更新提示信息中的当前URL
     function updateTipWithCurrentUrl() {
@@ -400,8 +554,14 @@
         if (tipElement) {
             var displayUrl = currentUrl;
             // 如果URL太长，截取显示
-            if (displayUrl.length > 50) {
-                displayUrl = displayUrl.substring(0, 47) + '...';
+            if (displayUrl.length > 60) {
+                var urlObj = new URL(displayUrl);
+                var hostname = urlObj.hostname;
+                var pathname = urlObj.pathname;
+                if (pathname.length > 30) {
+                    pathname = '...' + pathname.substring(pathname.length - 27);
+                }
+                displayUrl = hostname + pathname;
             }
             tipElement.innerHTML = `如果画面长时间空白，请点击右上角选择在浏览器中打开！<br><small>当前页面: ${displayUrl}</small>`;
         }
@@ -412,6 +572,29 @@
         if (urlTrackingInterval) {
             clearInterval(urlTrackingInterval);
             urlTrackingInterval = null;
+        }
+    }
+    
+    // 监听iframe的src属性变化
+    function observeIframeSrcChanges() {
+        var iframe = document.getElementById('content-frame');
+        if (iframe && window.MutationObserver) {
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
+                        var newSrc = iframe.src;
+                        if (newSrc && newSrc !== lastKnownUrl && newSrc !== 'about:blank') {
+                            console.log('检测到iframe src变化:', newSrc);
+                            updateCurrentUrl(newSrc);
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(iframe, {
+                attributes: true,
+                attributeFilter: ['src']
+            });
         }
     }
     
@@ -453,4 +636,3 @@
     <script>LA.init({id:"K8YSQIj3WDtj9gG6",ck:"K8YSQIj3WDtj9gG6"})</script>
 </body>
 </html>
-
