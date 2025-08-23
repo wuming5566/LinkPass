@@ -121,4 +121,4 @@ Github防红/
 ## 🔗 相关链接
 
 - **作者博客**：[https://blog.taocrypt.us.kg/](https://blog.taocrypt.us.kg/)
-- **原项目地址**：[qq_fanghong)](https://github.com/Qiantigers/qq_fanghong)
+- **原项目地址**：[xin-tencent-fang-hong](https://github.com/CalmXin/xin-tencent-fang-hong)
