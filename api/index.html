@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0,viewport-fit=cover">
+    <title>加载中，请稍等...</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #iframe-container {
+            width: 100%;
+            height: 100vh;
+            border: none;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 16px;
+            color: #666;
+        }
+        .error {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 16px;
+            color: #ff4444;
+            text-align: center;
+            padding: 20px;
+        }
+        .error a {
+            color: #0066cc;
+            text-decoration: none;
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: 1px solid #0066cc;
+            border-radius: 5px;
+        }
+        .error a:hover {
+            background-color: #0066cc;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="iframe-container" style="display: none;">
+        <iframe id="content-frame" frameborder="0" width="100%" height="100%"></iframe>
+    </div>
+    
+    <div id="loading" class="loading">
+        正在加载中...
+    </div>
+    
+    <div id="error" class="error" style="display: none;">
+        <div>无法在QQ/微信中直接访问外部链接</div>
+        <a href="#" id="open-browser">点击在浏览器中打开</a>
+    </div>
+    
+    <script>
+    // 检测是否在QQ/微信中打开
+    function isInWeChatOrQQ() {
+        var ua = navigator.userAgent.toLowerCase();
+        return ua.indexOf('micromessenger') > -1 || ua.indexOf('qq/') > -1;
+    }
+    
+    // 获取URL参数中的目标网址
+    function getTargetUrl() {
+        var url = document.location.toString();
+        var urlParmStr = url.slice(url.indexOf('=')+1);
+        
+        // 设置默认URL
+        if (urlParmStr == url) {
+            urlParmStr = "https://www.yiove.com";
+        }
+        
+        return urlParmStr;
+    }
+    
+    // 获取网页标题
+    function getPageTitle(url, callback) {
+        // 创建一个隐藏的iframe来获取标题
+        var tempFrame = document.createElement('iframe');
+        tempFrame.style.display = 'none';
+        tempFrame.src = url;
+        
+        tempFrame.onload = function() {
+            try {
+                var title = tempFrame.contentDocument.title || '未知页面';
+                callback(title);
+            } catch(e) {
+                // 跨域限制，无法获取标题
+                callback('未知页面');
+            }
+            // 移除临时iframe
+            document.body.removeChild(tempFrame);
+        };
+        
+        tempFrame.onerror = function() {
+            callback('未知页面');
+            document.body.removeChild(tempFrame);
+        };
+        
+        document.body.appendChild(tempFrame);
+    }
+    
+    // 主函数
+    function init() {
+        var targetUrl = getTargetUrl();
+        console.log("目标URL:", targetUrl);
+        
+        if (isInWeChatOrQQ()) {
+            // 在QQ/微信中，显示iframe
+            console.log("检测到在QQ/微信中打开，使用iframe内嵌显示");
+            
+            // 获取页面标题
+            getPageTitle(targetUrl, function(title) {
+                document.title = title || '中转页面';
+                console.log("获取到页面标题:", title);
+            });
+            
+            // 显示iframe并加载内容
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('iframe-container').style.display = 'block';
+            document.getElementById('content-frame').src = targetUrl;
+            
+        } else {
+            // 直接在浏览器中打开，跳转到目标网址
+            console.log("检测到在浏览器中直接打开，跳转到目标网址");
+            window.location.href = targetUrl;
+        }
+    }
+    
+    // 处理在浏览器中打开的链接
+    document.getElementById('open-browser').addEventListener('click', function(e) {
+        e.preventDefault();
+        var targetUrl = getTargetUrl();
+        // 尝试使用window.open在新窗口打开
+        var newWindow = window.open(targetUrl, '_blank');
+        if (!newWindow) {
+            // 如果弹窗被阻止，显示提示
+            alert('请复制以下链接到浏览器中打开：\n' + targetUrl);
+        }
+    });
+    
+    // 页面加载完成后执行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+    </script>
+    
+    <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
+    <script>LA.init({id:"K8YSQIj3WDtj9gG6",ck:"K8YSQIj3WDtj9gG6"})</script>
+</body>
+</html>
+
