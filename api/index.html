@@ -73,6 +73,20 @@
         .title-bar .close-btn:hover {
             background: rgba(255, 255, 255, 0.3);
         }
+        .title-bar .content {
+            flex: 1;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .title-bar .content .title-text {
+            display: inline-block;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .title-bar .content .tip-text {
+            display: inline-block;
+            transition: opacity 0.5s ease-in-out;
+            color: #ffd700;
+        }
         .iframe-with-title {
             margin-top: 40px;
             height: calc(100vh - 40px);
@@ -81,7 +95,10 @@
 </head>
 <body>
     <div id="title-bar" class="title-bar" style="display: none;">
-        <span id="page-title">正在加载...</span>
+        <div class="content">
+            <span id="page-title" class="title-text">正在加载...</span>
+            <span id="page-tip" class="tip-text" style="display: none;">如果画面长时间空白，请点击右上角选择在浏览器中打开！</span>
+        </div>
         <button class="close-btn" onclick="hideTitleBar()">隐藏</button>
     </div>
     
@@ -219,12 +236,76 @@
         document.getElementById('page-title').textContent = title;
         document.getElementById('title-bar').style.display = 'flex';
         document.getElementById('iframe-container').className = 'iframe-with-title';
+        
+        // 启动标题轮换
+        startTitleRotation();
     }
     
     // 隐藏标题栏
     function hideTitleBar() {
         document.getElementById('title-bar').style.display = 'none';
         document.getElementById('iframe-container').className = '';
+        
+        // 停止标题轮换
+        stopTitleRotation();
+    }
+    
+    // 标题轮换相关变量
+    var titleRotationInterval = null;
+    var isShowingTitle = true;
+    
+    // 启动标题轮换
+    function startTitleRotation() {
+        // 清除之前的定时器
+        if (titleRotationInterval) {
+            clearInterval(titleRotationInterval);
+        }
+        
+        // 设置5秒轮换
+        titleRotationInterval = setInterval(function() {
+            toggleTitleDisplay();
+        }, 5000);
+    }
+    
+    // 停止标题轮换
+    function stopTitleRotation() {
+        if (titleRotationInterval) {
+            clearInterval(titleRotationInterval);
+            titleRotationInterval = null;
+        }
+        // 重置显示状态
+        isShowingTitle = true;
+        showTitle();
+    }
+    
+    // 切换标题显示
+    function toggleTitleDisplay() {
+        if (isShowingTitle) {
+            showTip();
+        } else {
+            showTitle();
+        }
+        isShowingTitle = !isShowingTitle;
+    }
+    
+    // 显示标题
+    function showTitle() {
+        document.getElementById('page-title').style.opacity = '1';
+        document.getElementById('page-tip').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('page-title').style.display = 'inline-block';
+            document.getElementById('page-tip').style.display = 'none';
+        }, 500);
+    }
+    
+    // 显示提示
+    function showTip() {
+        document.getElementById('page-title').style.opacity = '0';
+        document.getElementById('page-tip').style.opacity = '1';
+        setTimeout(() => {
+            document.getElementById('page-title').style.display = 'none';
+            document.getElementById('page-tip').style.display = 'inline-block';
+        }, 500);
     }
     
     // 主函数
