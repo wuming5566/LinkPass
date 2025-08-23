@@ -120,5 +120,5 @@ Github防红/
 
 ## 🔗 相关链接
 
-- **作者博客**：[blog.taocrypt.us.kg](https://blog.taocrypt.us.kg/)
+- **作者博客**：[blog.taocrypt.us.kg](https://blog.taocrypt.us.kg/article/LinkPass)
 - **原项目地址**：[xin-tencent-fang-hong](https://github.com/CalmXin/xin-tencent-fang-hong)
