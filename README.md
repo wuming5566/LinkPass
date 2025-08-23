@@ -30,7 +30,7 @@
 ## 🚀 使用方法
 
 ### 1. 访问网站
-进入防红链接生成器：[taocrypt.github.io/fh](https://taocrypt.github.io/fh)
+进入防红链接生成器：[taocrypt.github.io/LinkPass](https://taocrypt.github.io/LinkPass)
 
 ### 2. 输入密码
 - 默认密码：`taocrypt`
@@ -120,5 +120,5 @@ Github防红/
 
 ## 🔗 相关链接
 
-- **作者博客**：[https://blog.taocrypt.us.kg/](https://blog.taocrypt.us.kg/)
+- **作者博客**：[blog.taocrypt.us.kg](https://blog.taocrypt.us.kg/)
 - **原项目地址**：[xin-tencent-fang-hong](https://github.com/CalmXin/xin-tencent-fang-hong)
