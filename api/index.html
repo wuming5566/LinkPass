@@ -248,6 +248,9 @@
         
         // 停止标题轮换
         stopTitleRotation();
+        
+        // 停止URL跟踪
+        stopUrlTracking();
     }
     
     // 标题轮换相关变量
@@ -318,13 +321,19 @@
             console.log("检测到在QQ/微信中打开，使用iframe内嵌显示");
             
             // 先显示默认标题
-            document.title = '中转页面';
+            document.title = '请等待...';
             showTitleBar('正在加载...');
             
             // 显示iframe并加载内容
             document.getElementById('loading').style.display = 'none';
             document.getElementById('iframe-container').style.display = 'block';
             document.getElementById('content-frame').src = targetUrl;
+            
+            // 启动URL跟踪
+            startUrlTracking();
+            
+            // 初始化提示信息
+            updateTipWithCurrentUrl();
             
             // 尝试获取页面标题
             getPageTitle(targetUrl, function(title) {
@@ -340,15 +349,95 @@
         }
     }
     
+    // URL跟踪相关变量
+    var currentUrl = '';
+    var urlTrackingInterval = null;
+    
+    // 启动URL跟踪
+    function startUrlTracking() {
+        // 设置初始URL
+        currentUrl = getTargetUrl();
+        
+        // 定期检查iframe的URL变化
+        urlTrackingInterval = setInterval(function() {
+            try {
+                var iframe = document.getElementById('content-frame');
+                if (iframe && iframe.contentWindow && iframe.contentWindow.location) {
+                    var newUrl = iframe.contentWindow.location.href;
+                    if (newUrl && newUrl !== currentUrl && !newUrl.includes('about:blank')) {
+                        currentUrl = newUrl;
+                        console.log("检测到URL变化:", currentUrl);
+                        
+                        // 更新提示信息中的URL
+                        updateTipWithCurrentUrl();
+                    }
+                }
+            } catch(e) {
+                // 跨域限制，无法直接访问iframe的location
+                // 使用其他方法尝试获取当前URL
+                tryGetCurrentUrlFromIframe();
+            }
+        }, 2000); // 每2秒检查一次
+    }
+    
+    // 尝试从iframe获取当前URL（处理跨域限制）
+    function tryGetCurrentUrlFromIframe() {
+        try {
+            var iframe = document.getElementById('content-frame');
+            if (iframe && iframe.contentWindow) {
+                // 尝试通过postMessage或其他方式获取URL
+                // 这里我们使用一个更安全的方法
+                iframe.contentWindow.postMessage({type: 'getCurrentUrl'}, '*');
+            }
+        } catch(e) {
+            console.log('无法获取iframe当前URL:', e);
+        }
+    }
+    
+    // 更新提示信息中的当前URL
+    function updateTipWithCurrentUrl() {
+        var tipElement = document.getElementById('page-tip');
+        if (tipElement) {
+            var displayUrl = currentUrl;
+            // 如果URL太长，截取显示
+            if (displayUrl.length > 50) {
+                displayUrl = displayUrl.substring(0, 47) + '...';
+            }
+            tipElement.innerHTML = `如果画面长时间空白，请点击右上角选择在浏览器中打开！<br><small>当前页面: ${displayUrl}</small>`;
+        }
+    }
+    
+    // 停止URL跟踪
+    function stopUrlTracking() {
+        if (urlTrackingInterval) {
+            clearInterval(urlTrackingInterval);
+            urlTrackingInterval = null;
+        }
+    }
+    
     // 处理在浏览器中打开的链接
     document.getElementById('open-browser').addEventListener('click', function(e) {
         e.preventDefault();
-        var targetUrl = getTargetUrl();
+        
+        // 使用当前跟踪的URL，而不是初始URL
+        var targetUrl = currentUrl || getTargetUrl();
+        console.log("在浏览器中打开当前页面:", targetUrl);
+        
         // 尝试使用window.open在新窗口打开
         var newWindow = window.open(targetUrl, '_blank');
         if (!newWindow) {
             // 如果弹窗被阻止，显示提示
-            alert('请复制以下链接到浏览器中打开：\n' + targetUrl);
+            var message = '请复制以下链接到浏览器中打开：\n' + targetUrl;
+            if (navigator.clipboard && window.isSecureContext) {
+                // 尝试自动复制到剪贴板
+                navigator.clipboard.writeText(targetUrl).then(() => {
+                    alert('链接已复制到剪贴板！\n' + message);
+                }).catch(() => {
+                    alert(message);
+                });
+            } else {
+                alert(message);
+            }
         }
     });
     
