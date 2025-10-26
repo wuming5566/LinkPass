@@ -97,7 +97,7 @@
     <div id="title-bar" class="title-bar" style="display: none;">
         <div class="content">
             <span id="page-title" class="title-text">正在加载...</span>
-            <span id="page-tip" class="tip-text" style="display: none;">若页面不显示 点击右上角...在浏览器中打开</span>
+            <span id="page-tip" class="tip-text" style="display: none;">若页面空白不显示，点击右上角...在浏览器中打开</span>
         </div>
         <button class="close-btn" onclick="hideTitleBar()">隐藏</button>
     </div>
@@ -563,7 +563,7 @@
                 }
                 displayUrl = hostname + pathname;
             }
-            tipElement.innerHTML = `若页面不显示 点击右上角...在浏览器中打开<br><small>地址: ${displayUrl}</small>`;
+            tipElement.innerHTML = `若页面空白不显示，点击右上角...在浏览器中打开<br><small>地址: ${displayUrl}</small>`;
         }
     }
     
