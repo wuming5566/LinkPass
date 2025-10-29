@@ -96,7 +96,7 @@
 <body>
     <div id="title-bar" class="title-bar" style="display: none;">
         <div class="content">
-            <span id="page-title" class="title-text">正在加载...</span>
+            <span id="page-title" class="title-text">若页面空白不显示，点击右上角...在浏览器中打开</span>
             <span id="page-tip" class="tip-text" style="display: none;">若页面空白不显示，点击右上角...在浏览器中打开</span>
         </div>
         <button class="close-btn" onclick="hideTitleBar()">隐藏</button>
@@ -322,7 +322,7 @@
             
             // 先显示默认标题
             document.title = '中转页面';
-            showTitleBar('正在加载...');
+            showTitleBar('若页面空白不显示，点击右上角...在浏览器中打开');
             
             // 显示iframe并加载内容
             document.getElementById('loading').style.display = 'none';
